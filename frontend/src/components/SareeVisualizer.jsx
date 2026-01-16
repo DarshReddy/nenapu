@@ -44,10 +44,10 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
             ) : (
               <div className="h-full flex flex-col">
                 {/* Saree Parts Visualization */}
-                <div className="flex-1 flex flex-col">
+                <div className="h-full flex flex-col">
                   {/* Pallu (Top) */}
                   <div 
-                    className="h-1/4 relative transition-all duration-500 hover:shadow-inner"
+                    className="h-[25%] relative transition-all duration-500 hover:shadow-inner"
                     style={{ backgroundColor: sareeState.pallu.color }}
                   >
                     <div className="absolute inset-0 flex items-center justify-center bg-black/10">
@@ -71,7 +71,7 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
                   
                   {/* Body (Middle) */}
                   <div 
-                    className="flex-1 relative transition-all duration-500 hover:shadow-inner"
+                    className="h-[58%] relative transition-all duration-500 hover:shadow-inner"
                     style={{ backgroundColor: sareeState.body.color }}
                   >
                     <div className="absolute inset-0 flex items-center justify-center bg-black/5">
@@ -95,7 +95,7 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
                   
                   {/* Border (Bottom) */}
                   <div 
-                    className="h-1/6 relative transition-all duration-500 hover:shadow-inner"
+                    className="h-[17%] relative transition-all duration-500 hover:shadow-inner"
                     style={{ backgroundColor: sareeState.border.color }}
                   >
                     <div className="absolute inset-0 flex items-center justify-center bg-black/10">
