@@ -11,6 +11,13 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
     });
   };
 
+  // Get zari filter for metallic effect
+  const getZariFilter = (zari) => {
+    if (zari === 'Gold') return 'brightness(1.2) contrast(1.1)';
+    if (zari === 'Silver') return 'brightness(1.15) contrast(1.05)';
+    return 'brightness(1.1) contrast(1.08)';
+  };
+
   return (
     <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-background via-accent/30 to-background">
       <Card className="flex-1 shadow-elevated border-border/50 bg-card/80 backdrop-blur">
@@ -21,123 +28,196 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
               Your Saree Design
             </CardTitle>
             <Badge variant="secondary" className="font-medium">
-              Preview
+              Live Preview
             </Badge>
           </div>
           <CardDescription className="text-base">
-            Visualize your custom creation in real-time
+            Experience the artistry of Kanchipuram silk
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Main Visualization Area */}
-          <div className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-border shadow-medium bg-gradient-to-br from-muted/30 to-accent/20">
+          {/* Main Visualization Area - Split Layout */}
+          <div className="relative aspect-[4/5] rounded-xl overflow-hidden border-2 border-border shadow-elevated bg-gradient-to-br from-muted/30 to-accent/20">
             {isGenerating ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md z-10">
                 <div className="relative">
-                  <Loader2 className="w-16 h-16 text-secondary animate-spin" />
-                  <div className="absolute inset-0 w-16 h-16 border-4 border-secondary/20 rounded-full animate-pulse"></div>
+                  <Loader2 className="w-20 h-20 text-secondary animate-spin" />
+                  <div className="absolute inset-0 w-20 h-20 border-4 border-secondary/20 rounded-full animate-pulse"></div>
                 </div>
-                <p className="mt-6 text-lg font-medium text-primary">Weaving your design...</p>
-                <p className="mt-2 text-sm text-muted-foreground">This may take a moment</p>
+                <p className="mt-6 text-xl font-medium text-primary">Weaving your masterpiece...</p>
+                <p className="mt-2 text-sm text-muted-foreground">Crafting each thread with care</p>
               </div>
             ) : (
-              <div className="h-full flex flex-col">
-                {/* Saree Parts Visualization */}
-                <div className="h-full flex flex-col">
-                  {/* Pallu (Top) */}
+              <div className="h-full flex">
+                {/* Main Saree Body (80% width) */}
+                <div className="w-[80%] h-full flex flex-col">
+                  {/* Top Border (15%) */}
                   <div 
-                    className="h-[25%] relative transition-all duration-500 hover:shadow-inner"
-                    style={{ backgroundColor: sareeState.pallu.color }}
+                    className="h-[15%] relative transition-all duration-700 group"
+                    style={{ 
+                      backgroundColor: sareeState.border.color,
+                      filter: getZariFilter(sareeState.border.zari)
+                    }}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                      <div className="text-center space-y-1 p-4">
-                        <p className="text-xs font-semibold text-white/90 drop-shadow-lg">PALLU</p>
-                        <Badge 
-                          variant="outline" 
-                          className="bg-white/20 border-white/40 text-white text-xs backdrop-blur-sm"
-                        >
-                          {sareeState.pallu.pattern}
-                        </Badge>
-                        <p className="text-xs text-white/80">{sareeState.pallu.zari} Zari</p>
-                      </div>
-                    </div>
-                    {/* Zari dots pattern */}
+                    {/* Silk grain texture */}
                     <div className="absolute inset-0 opacity-30" style={{
-                      backgroundImage: `radial-gradient(circle, ${sareeState.pallu.zari === 'Gold' ? '#FFD700' : sareeState.pallu.zari === 'Silver' ? '#C0C0C0' : '#B87333'} 1px, transparent 1px)`,
-                      backgroundSize: '20px 20px'
+                      backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 4px)`,
                     }}></div>
-                  </div>
-                  
-                  {/* Body (Middle) */}
-                  <div 
-                    className="h-[58%] relative transition-all duration-500 hover:shadow-inner"
-                    style={{ backgroundColor: sareeState.body.color }}
-                  >
+                    
+                    {/* Doop-Choop dual-tone effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-black/10 opacity-20"></div>
+                    
+                    {/* Zari pattern */}
+                    <div className="absolute inset-0 opacity-40" style={{
+                      backgroundImage: `repeating-linear-gradient(0deg, ${sareeState.border.zari === 'Gold' ? '#FFD700' : sareeState.border.zari === 'Silver' ? '#E8E8E8' : '#CD7F32'} 0px, transparent 1px, transparent 8px)`,
+                    }}></div>
+                    
                     <div className="absolute inset-0 flex items-center justify-center bg-black/5">
-                      <div className="text-center space-y-2 p-4">
-                        <p className="text-sm font-semibold text-white/90 drop-shadow-lg">BODY</p>
+                      <div className="text-center space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-xs font-semibold text-white drop-shadow-lg">TOP BORDER</p>
                         <Badge 
                           variant="outline" 
-                          className="bg-white/20 border-white/40 text-white backdrop-blur-sm"
-                        >
-                          {sareeState.body.pattern}
-                        </Badge>
-                        <p className="text-xs text-white/80">{sareeState.body.zari} Zari Work</p>
-                      </div>
-                    </div>
-                    {/* Silk texture pattern */}
-                    <div className="absolute inset-0 opacity-20" style={{
-                      backgroundImage: `linear-gradient(45deg, transparent 48%, white 48%, white 52%, transparent 52%)`,
-                      backgroundSize: '4px 4px'
-                    }}></div>
-                  </div>
-                  
-                  {/* Border (Bottom) */}
-                  <div 
-                    className="h-[17%] relative transition-all duration-500 hover:shadow-inner"
-                    style={{ backgroundColor: sareeState.border.color }}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                      <div className="text-center space-y-1 p-2">
-                        <p className="text-xs font-semibold text-white/90 drop-shadow-lg">BORDER</p>
-                        <Badge 
-                          variant="outline" 
-                          className="bg-white/20 border-white/40 text-white text-xs backdrop-blur-sm"
+                          className="bg-white/30 border-white/50 text-white text-xs backdrop-blur-sm"
                         >
                           {sareeState.border.pattern}
                         </Badge>
-                        <p className="text-xs text-white/80">{sareeState.border.zari}</p>
                       </div>
                     </div>
-                    {/* Decorative border pattern */}
-                    <div className="absolute inset-0 opacity-40" style={{
-                      backgroundImage: `repeating-linear-gradient(90deg, ${sareeState.border.zari === 'Gold' ? '#FFD700' : sareeState.border.zari === 'Silver' ? '#C0C0C0' : '#B87333'} 0px, transparent 2px, transparent 10px, ${sareeState.border.zari === 'Gold' ? '#FFD700' : sareeState.border.zari === 'Silver' ? '#C0C0C0' : '#B87333'} 12px)`,
+                  </div>
+                  
+                  {/* Saree Body (70%) */}
+                  <div 
+                    className="h-[70%] relative transition-all duration-700 group"
+                    style={{ 
+                      backgroundColor: sareeState.body.color,
+                      filter: getZariFilter(sareeState.body.zari)
+                    }}
+                  >
+                    {/* Silk grain texture - vertical weave */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `repeating-linear-gradient(0deg, rgba(255,255,255,0.15) 0px, transparent 1px, transparent 3px)`,
                     }}></div>
+                    
+                    {/* Doop-Choop dual-tone silk reflection */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/15 opacity-20"></div>
+                    
+                    {/* Butta (motif) pattern */}
+                    <div className="absolute inset-0 opacity-30" style={{
+                      backgroundImage: `radial-gradient(circle, ${sareeState.body.zari === 'Gold' ? '#FFD700' : sareeState.body.zari === 'Silver' ? '#E8E8E8' : '#CD7F32'} 1.5px, transparent 1.5px)`,
+                      backgroundSize: '30px 30px',
+                      backgroundPosition: '0 0, 15px 15px'
+                    }}></div>
+                    
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                      <div className="text-center space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-sm font-semibold text-white drop-shadow-lg">SAREE BODY</p>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-white/30 border-white/50 text-white backdrop-blur-sm"
+                        >
+                          {sareeState.body.pattern}
+                        </Badge>
+                        <p className="text-xs text-white/90 drop-shadow">{sareeState.body.zari} Zari Work</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Bottom Border (15%) */}
+                  <div 
+                    className="h-[15%] relative transition-all duration-700 group"
+                    style={{ 
+                      backgroundColor: sareeState.border.color,
+                      filter: getZariFilter(sareeState.border.zari)
+                    }}
+                  >
+                    {/* Silk grain texture */}
+                    <div className="absolute inset-0 opacity-30" style={{
+                      backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 4px)`,
+                    }}></div>
+                    
+                    {/* Doop-Choop effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-white/10 opacity-20"></div>
+                    
+                    {/* Zari pattern */}
+                    <div className="absolute inset-0 opacity-40" style={{
+                      backgroundImage: `repeating-linear-gradient(0deg, ${sareeState.border.zari === 'Gold' ? '#FFD700' : sareeState.border.zari === 'Silver' ? '#E8E8E8' : '#CD7F32'} 0px, transparent 1px, transparent 8px)`,
+                    }}></div>
+                    
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                      <div className="text-center space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-xs font-semibold text-white drop-shadow-lg">BOTTOM BORDER</p>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-white/30 border-white/50 text-white text-xs backdrop-blur-sm"
+                        >
+                          {sareeState.border.pattern}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Pallu Panel (20% width) - The Grand Artistry */}
+                <div 
+                  className="w-[20%] h-full relative transition-all duration-700 border-l-2 border-white/20 group"
+                  style={{ 
+                    backgroundColor: sareeState.pallu.color,
+                    filter: getZariFilter(sareeState.pallu.zari)
+                  }}
+                >
+                  {/* Intricate silk texture for pallu */}
+                  <div className="absolute inset-0 opacity-25" style={{
+                    backgroundImage: `repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 4px)`,
+                  }}></div>
+                  
+                  {/* Enhanced Doop-Choop for pallu */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/20 opacity-25"></div>
+                  
+                  {/* Rich zari work for pallu */}
+                  <div className="absolute inset-0 opacity-50" style={{
+                    backgroundImage: `radial-gradient(circle, ${sareeState.pallu.zari === 'Gold' ? '#FFD700' : sareeState.pallu.zari === 'Silver' ? '#E8E8E8' : '#CD7F32'} 2px, transparent 2px)`,
+                    backgroundSize: '20px 20px'
+                  }}></div>
+                  
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                    <div className="text-center space-y-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <p className="text-xs font-bold text-white drop-shadow-lg tracking-wider">PALLU</p>
+                      <Badge 
+                        variant="outline" 
+                        className="bg-white/30 border-white/50 text-white text-xs backdrop-blur-sm"
+                      >
+                        {sareeState.pallu.pattern}
+                      </Badge>
+                      <p className="text-xs text-white/90 drop-shadow">{sareeState.pallu.zari}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
           
-          {/* Design Summary */}
+          {/* Design Summary Cards */}
           <div className="grid grid-cols-3 gap-3">
-            <Card className="border-primary/20 bg-primary/5">
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">Body</p>
                 <p className="text-sm font-semibold text-primary truncate">{sareeState.body.pattern}</p>
+                <p className="text-xs text-muted-foreground">{sareeState.body.zari} Zari</p>
               </CardContent>
             </Card>
-            <Card className="border-secondary/20 bg-secondary/5">
+            <Card className="border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10">
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">Border</p>
                 <p className="text-sm font-semibold text-primary truncate">{sareeState.border.pattern}</p>
+                <p className="text-xs text-muted-foreground">{sareeState.border.zari} Zari</p>
               </CardContent>
             </Card>
-            <Card className="border-accent/20 bg-accent/5">
+            <Card className="border-accent/30 bg-gradient-to-br from-accent/10 to-accent/20">
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">Pallu</p>
                 <p className="text-sm font-semibold text-primary truncate">{sareeState.pallu.pattern}</p>
+                <p className="text-xs text-muted-foreground">{sareeState.pallu.zari} Zari</p>
               </CardContent>
             </Card>
           </div>
@@ -153,12 +233,12 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  Weaving...
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Design
+                  Weave Saree
                 </>
               )}
             </Button>
