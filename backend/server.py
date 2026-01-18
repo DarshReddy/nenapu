@@ -142,6 +142,62 @@ async def generate_motifs(request: MotifGenerationRequest):
             "error": str(e)
         }
 
+@api_router.post("/finalize-design")
+async def finalize_design(request: FinalizeDesignRequest):
+    """
+    Generate a professional fashion photograph of the complete custom saree
+    """
+    try:
+        # Use Emergent LLM key for Google Gemini
+        api_key = "sk-emergent-4A7F72a58F04b5bEc1"
+        
+        logger.info(f"Generating final saree design with prompt: {request.prompt[:100]}...")
+        
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            # Call Google Gemini API for full saree image generation
+            response = await client.post(
+                "https://api.emergent.sh/v1/images/generations",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "imagen-3.0-generate-001",
+                    "prompt": request.prompt,
+                    "n": 1,
+                    "size": "1792x1024",  # Landscape for full saree display
+                    "response_format": "url"
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("data") and len(data["data"]) > 0:
+                    image_url = data["data"][0].get("url")
+                    if image_url:
+                        logger.info("Final saree design generated successfully")
+                        return {
+                            "imageUrl": image_url,
+                            "sareeState": request.sareeState
+                        }
+            
+            logger.error(f"Image generation failed: {response.status_code} - {response.text}")
+            # Return placeholder
+            return {
+                "imageUrl": "https://placehold.co/1792x1024/4A0404/FFD700?text=Your+Custom+Saree+Design",
+                "sareeState": request.sareeState,
+                "error": "Generation service unavailable"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error finalizing design: {str(e)}")
+        # Return placeholder on error
+        return {
+            "imageUrl": "https://placehold.co/1792x1024/4A0404/FFD700?text=Your+Custom+Saree+Design",
+            "sareeState": request.sareeState,
+            "error": str(e)
+        }
+
 # Include the router in the main app
 app.include_router(api_router)
 
