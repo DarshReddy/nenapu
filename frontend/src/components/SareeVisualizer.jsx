@@ -181,7 +181,13 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
                   className="w-[20%] h-full relative transition-all duration-700 border-l-2 border-white/20 group"
                   style={{ 
                     backgroundColor: sareeState.pallu.color,
-                    filter: getZariFilter(sareeState.pallu.zari)
+                    filter: getZariFilter(sareeState.pallu.zari),
+                    ...(sareeState.pallu.motifUrl && {
+                      backgroundImage: `url(${sareeState.pallu.motifUrl})`,
+                      backgroundRepeat: 'repeat',
+                      backgroundSize: '60px 60px',
+                      backgroundBlendMode: 'multiply'
+                    })
                   }}
                 >
                   {/* Intricate silk texture for pallu */}
