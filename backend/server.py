@@ -39,6 +39,12 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+class MotifGenerationRequest(BaseModel):
+    prompt: str
+    count: int = 4
+    section: str
+    keyword: str
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
