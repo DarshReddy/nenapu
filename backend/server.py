@@ -45,6 +45,10 @@ class MotifGenerationRequest(BaseModel):
     section: str
     keyword: str
 
+class FinalizeDesignRequest(BaseModel):
+    prompt: str
+    sareeState: dict
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
