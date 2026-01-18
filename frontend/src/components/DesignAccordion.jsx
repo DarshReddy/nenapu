@@ -89,6 +89,65 @@ export const DesignAccordion = ({ sareeState, updatePart, onGenerate }) => {
     );
   };
 
+  const handleMotifSearch = async (section) => {
+    const keyword = motifSearchKeywords[section].trim();
+    if (!keyword) {
+      toast.error('Please enter a search keyword');
+      return;
+    }
+
+    setIsGeneratingMotifs(prev => ({ ...prev, [section]: true }));
+    
+    try {
+      const zariType = sareeState[section].zari;
+      const prompt = `A single high-resolution Kanjeevaram ${keyword} motif, flat textile design, traditional South Indian style, ${zariType} zari, solid background, seamless pattern`;
+      
+      // Call backend API to generate motifs
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/generate-motifs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          count: 4,
+          section,
+          keyword
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate motifs');
+      }
+
+      const data = await response.json();
+      
+      setGeneratedMotifs(prev => ({
+        ...prev,
+        [section]: data.motifs || []
+      }));
+
+      toast.success(`${keyword} motifs generated!`, {
+        description: `Click on a motif to apply it to your ${section}`,
+      });
+    } catch (error) {
+      console.error('Error generating motifs:', error);
+      toast.error('Failed to generate motifs', {
+        description: 'Please try again or use a different keyword',
+      });
+    } finally {
+      setIsGeneratingMotifs(prev => ({ ...prev, [section]: false }));
+    }
+  };
+
+  const handleApplyMotif = (section, motifUrl) => {
+    updatePart(section, { motifUrl });
+    toast.success('Motif applied!', {
+      description: `${section} section updated with custom pattern`,
+      icon: '✨',
+    });
+  };
+
   return (
     <Accordion type="single" collapsible defaultValue="border" className="space-y-4">
       {/* Border Designs */}
