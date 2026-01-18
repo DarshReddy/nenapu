@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime, timezone
 import httpx
 import base64
+from google import genai
+from google.genai import types
 
 
 ROOT_DIR = Path(__file__).parent
@@ -81,42 +83,40 @@ async def get_status_checks():
 @api_router.post("/generate-motifs")
 async def generate_motifs(request: MotifGenerationRequest):
     """
-    Generate Kanjeevaram saree motifs using Gemini 2.0 Flash Image Generation
+    Generate Kanjeevaram saree motifs using Gemini 2.0 Flash with image generation
     """
     try:
-        # Use Emergent LLM key for Google Gemini
-        api_key = "sk-emergent-4A7F72a58F04b5bEc1"
-        
-        # Generate motifs using Google's Imagen 3
+        # Initialize Google GenAI client
+        client = genai.Client(api_key=os.environ.get('GOOGLE_API_KEY'))
+
         motifs = []
-        
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            for i in range(request.count):
-                # Call Google Gemini API for image generation
-                response = await client.post(
-                    "https://api.emergent.sh/v1/images/generations",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": "imagen-3.0-generate-001",
-                        "prompt": request.prompt,
-                        "n": 1,
-                        "size": "1024x1024",
-                        "response_format": "url"
-                    }
+
+        for i in range(request.count):
+            try:
+                # Generate image using Gemini 2.0 Flash
+                response = client.models.generate_content(
+                    model='gemini-2.0-flash-exp-image-generation',
+                    contents=request.prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=['TEXT', 'IMAGE']
+                    )
                 )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("data") and len(data["data"]) > 0:
-                        image_url = data["data"][0].get("url")
-                        if image_url:
-                            motifs.append(image_url)
-                else:
-                    logger.error(f"Image generation failed: {response.status_code} - {response.text}")
-        
+
+                # Extract image from response
+                if response.candidates and len(response.candidates) > 0:
+                    for part in response.candidates[0].content.parts:
+                        if part.inline_data:
+                            image_data = part.inline_data.data
+                            mime_type = part.inline_data.mime_type
+                            base64_image = base64.b64encode(image_data).decode('utf-8')
+                            data_url = f"data:{mime_type};base64,{base64_image}"
+                            motifs.append(data_url)
+                            logger.info(f"Generated motif {i+1}/{request.count}")
+                            break
+
+            except Exception as img_error:
+                logger.error(f"Error generating motif {i+1}: {str(img_error)}")
+
         if len(motifs) == 0:
             # Fallback: return placeholder images
             logger.warning("No motifs generated, using placeholder images")
@@ -124,11 +124,11 @@ async def generate_motifs(request: MotifGenerationRequest):
                 f"https://placehold.co/400x400/8B0000/FFD700?text=Motif+{i+1}"
                 for i in range(request.count)
             ]
-        
+
         logger.info(f"Generated {len(motifs)} motifs for {request.section} with keyword: {request.keyword}")
-        
+
         return {"motifs": motifs, "section": request.section, "keyword": request.keyword}
-        
+
     except Exception as e:
         logger.error(f"Error generating motifs: {str(e)}")
         # Return placeholder images on error
@@ -148,47 +148,41 @@ async def finalize_design(request: FinalizeDesignRequest):
     Generate a professional fashion photograph of the complete custom saree
     """
     try:
-        # Use Emergent LLM key for Google Gemini
-        api_key = "sk-emergent-4A7F72a58F04b5bEc1"
-        
+        # Initialize Google GenAI client
+        client = genai.Client(api_key=os.environ.get('GOOGLE_API_KEY'))
+
         logger.info(f"Generating final saree design with prompt: {request.prompt[:100]}...")
-        
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            # Call Google Gemini API for full saree image generation
-            response = await client.post(
-                "https://api.emergent.sh/v1/images/generations",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "imagen-3.0-generate-001",
-                    "prompt": request.prompt,
-                    "n": 1,
-                    "size": "1792x1024",  # Landscape for full saree display
-                    "response_format": "url"
-                }
+
+        # Generate image using Gemini 2.0 Flash
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp-image-generation',
+            contents=request.prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=['TEXT', 'IMAGE']
             )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("data") and len(data["data"]) > 0:
-                    image_url = data["data"][0].get("url")
-                    if image_url:
-                        logger.info("Final saree design generated successfully")
-                        return {
-                            "imageUrl": image_url,
-                            "sareeState": request.sareeState
-                        }
-            
-            logger.error(f"Image generation failed: {response.status_code} - {response.text}")
-            # Return placeholder
-            return {
-                "imageUrl": "https://placehold.co/1792x1024/4A0404/FFD700?text=Your+Custom+Saree+Design",
-                "sareeState": request.sareeState,
-                "error": "Generation service unavailable"
-            }
-    
+        )
+
+        # Extract image from response
+        if response.candidates and len(response.candidates) > 0:
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    image_data = part.inline_data.data
+                    mime_type = part.inline_data.mime_type
+                    base64_image = base64.b64encode(image_data).decode('utf-8')
+                    data_url = f"data:{mime_type};base64,{base64_image}"
+                    logger.info("Final saree design generated successfully")
+                    return {
+                        "imageUrl": data_url,
+                        "sareeState": request.sareeState
+                    }
+
+        logger.error("No image generated")
+        return {
+            "imageUrl": "https://placehold.co/1792x1024/4A0404/FFD700?text=Your+Custom+Saree+Design",
+            "sareeState": request.sareeState,
+            "error": "Generation service unavailable"
+        }
+
     except Exception as e:
         logger.error(f"Error finalizing design: {str(e)}")
         # Return placeholder on error
