@@ -57,7 +57,13 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
                     className="h-[15%] relative transition-all duration-700 group"
                     style={{ 
                       backgroundColor: sareeState.border.color,
-                      filter: getZariFilter(sareeState.border.zari)
+                      filter: getZariFilter(sareeState.border.zari),
+                      ...(sareeState.border.motifUrl && {
+                        backgroundImage: `url(${sareeState.border.motifUrl})`,
+                        backgroundRepeat: 'repeat',
+                        backgroundSize: '100px 100px',
+                        backgroundBlendMode: 'multiply'
+                      })
                     }}
                   >
                     {/* Silk grain texture */}
