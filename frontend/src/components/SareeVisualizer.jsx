@@ -97,7 +97,13 @@ export const SareeVisualizer = ({ sareeState, isGenerating, onGenerate }) => {
                     className="h-[70%] relative transition-all duration-700 group"
                     style={{ 
                       backgroundColor: sareeState.body.color,
-                      filter: getZariFilter(sareeState.body.zari)
+                      filter: getZariFilter(sareeState.body.zari),
+                      ...(sareeState.body.motifUrl && {
+                        backgroundImage: `url(${sareeState.body.motifUrl})`,
+                        backgroundRepeat: 'repeat',
+                        backgroundSize: '80px 80px',
+                        backgroundBlendMode: 'multiply'
+                      })
                     }}
                   >
                     {/* Silk grain texture - vertical weave */}
