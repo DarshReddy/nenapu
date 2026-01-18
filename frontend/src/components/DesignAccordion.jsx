@@ -48,6 +48,24 @@ export const DesignAccordion = ({ sareeState, updatePart, onGenerate }) => {
     pallu: ''
   });
 
+  const [motifSearchKeywords, setMotifSearchKeywords] = useState({
+    border: '',
+    body: '',
+    pallu: ''
+  });
+
+  const [generatedMotifs, setGeneratedMotifs] = useState({
+    border: [],
+    body: [],
+    pallu: []
+  });
+
+  const [isGeneratingMotifs, setIsGeneratingMotifs] = useState({
+    border: false,
+    body: false,
+    pallu: false
+  });
+
   const handlePatternSelect = (section, pattern) => {
     updatePart(section, { pattern: pattern.name });
     toast.success(`${pattern.name} selected`, {
