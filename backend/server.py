@@ -51,6 +51,10 @@ class FinalizeDesignRequest(BaseModel):
     prompt: str
     sareeState: dict
 
+class SareePreviewRequest(BaseModel):
+    prompt: str
+    sareeState: dict
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
@@ -188,6 +192,56 @@ async def finalize_design(request: FinalizeDesignRequest):
         # Return placeholder on error
         return {
             "imageUrl": "https://placehold.co/1792x1024/4A0404/FFD700?text=Your+Custom+Saree+Design",
+            "sareeState": request.sareeState,
+            "error": str(e)
+        }
+
+@api_router.post("/generate-saree-preview")
+async def generate_saree_preview(request: SareePreviewRequest):
+    """
+    Generate a saree preview image based on current customization state.
+    Called each time user applies a design to update the preview.
+    """
+    try:
+        # Initialize Google GenAI client
+        client = genai.Client(api_key=os.environ.get('GOOGLE_API_KEY'))
+
+        logger.info(f"Generating saree preview with prompt: {request.prompt[:100]}...")
+
+        # Generate image using Gemini 2.0 Flash
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp-image-generation',
+            contents=request.prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=['TEXT', 'IMAGE']
+            )
+        )
+
+        # Extract image from response
+        if response.candidates and len(response.candidates) > 0:
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    image_data = part.inline_data.data
+                    mime_type = part.inline_data.mime_type
+                    base64_image = base64.b64encode(image_data).decode('utf-8')
+                    data_url = f"data:{mime_type};base64,{base64_image}"
+                    logger.info("Saree preview generated successfully")
+                    return {
+                        "imageUrl": data_url,
+                        "sareeState": request.sareeState
+                    }
+
+        logger.error("No image generated for preview")
+        return {
+            "imageUrl": None,
+            "sareeState": request.sareeState,
+            "error": "Generation service unavailable"
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating saree preview: {str(e)}")
+        return {
+            "imageUrl": None,
             "sareeState": request.sareeState,
             "error": str(e)
         }
