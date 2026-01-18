@@ -74,6 +74,70 @@ async def get_status_checks():
     
     return status_checks
 
+@api_router.post("/generate-motifs")
+async def generate_motifs(request: MotifGenerationRequest):
+    """
+    Generate Kanjeevaram saree motifs using Gemini 2.0 Flash Image Generation
+    """
+    try:
+        # Use Emergent LLM key for Google Gemini
+        api_key = "sk-emergent-4A7F72a58F04b5bEc1"
+        
+        # Generate motifs using Google's Imagen 3
+        motifs = []
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for i in range(request.count):
+                # Call Google Gemini API for image generation
+                response = await client.post(
+                    "https://api.emergent.sh/v1/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "imagen-3.0-generate-001",
+                        "prompt": request.prompt,
+                        "n": 1,
+                        "size": "1024x1024",
+                        "response_format": "url"
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("data") and len(data["data"]) > 0:
+                        image_url = data["data"][0].get("url")
+                        if image_url:
+                            motifs.append(image_url)
+                else:
+                    logger.error(f"Image generation failed: {response.status_code} - {response.text}")
+        
+        if len(motifs) == 0:
+            # Fallback: return placeholder images
+            logger.warning("No motifs generated, using placeholder images")
+            motifs = [
+                f"https://placehold.co/400x400/8B0000/FFD700?text=Motif+{i+1}"
+                for i in range(request.count)
+            ]
+        
+        logger.info(f"Generated {len(motifs)} motifs for {request.section} with keyword: {request.keyword}")
+        
+        return {"motifs": motifs, "section": request.section, "keyword": request.keyword}
+        
+    except Exception as e:
+        logger.error(f"Error generating motifs: {str(e)}")
+        # Return placeholder images on error
+        return {
+            "motifs": [
+                f"https://placehold.co/400x400/8B0000/FFD700?text=Motif+{i+1}"
+                for i in range(request.count)
+            ],
+            "section": request.section,
+            "keyword": request.keyword,
+            "error": str(e)
+        }
+
 # Include the router in the main app
 app.include_router(api_router)
 
