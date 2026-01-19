@@ -1,27 +1,20 @@
 /**
  * Gemini AI Service Layer for Saree Image Generation
- * 
+ *
  * ARCHITECTURE:
  * - Uses Google Gemini API (@google/generative-ai package)
+ * - Native image generation via "nano banana" models
  * - Two-tier model strategy:
- *   1. FAST Model (gemini-1.5-flash): Quick live preview updates
- *   2. QUALITY Model (gemini-1.5-pro): High-quality final generation
- * 
+ *   1. PREVIEW Model (gemini-2.5-flash-image): Fast live preview updates
+ *   2. FINAL Model (gemini-3-pro-image-preview): High-quality final generation
+ *
  * KEY FEATURES:
+ * - Native image generation with responseModalities: ['Text', 'Image']
  * - Consistent 5:1 horizontal aspect ratio for all saree images
  * - Multimodal support: Passes selected design images as context
  * - Detailed prompt engineering for professional textile photography
  * - Automatic preview regeneration on color/design changes
  * - Graceful fallbacks with placeholders
- * 
- * IMPORTANT NOTE:
- * Standard Gemini models generate TEXT descriptions, not images.
- * To get actual image generation, integrate with:
- * - Google Imagen API (recommended)
- * - Stability AI / DALL-E / Replicate
- * See IMAGE_GENERATION_SETUP.md for integration guide.
- * 
- * All prompts are production-ready with excellent context!
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -37,9 +30,40 @@ const getClient = () => {
   return new GoogleGenerativeAI(apiKey);
 };
 
-// Models: Use flash for fast previews, pro for high-quality final output
-const PREVIEW_MODEL = 'gemini-2.0-flash-exp';  // Fast model for live previews
-const FINAL_MODEL = 'gemini-2.0-flash-exp';    // Best quality for final generation (using flash-exp for now)
+// Models: Native image generation models (aka "nano banana")
+const PREVIEW_MODEL = 'gemini-2.5-flash-image';  // Fast model for live previews (nano banana)
+const FINAL_MODEL = 'gemini-3-pro-image-preview';  // Best quality for final generation (nano banana pro)
+
+/**
+ * Generation config for image output
+ * responseModalities enables native image generation
+ */
+const IMAGE_GEN_CONFIG = {
+  responseModalities: ['Text', 'Image'],
+};
+
+/**
+ * Helper to extract image data URL from Gemini response parts
+ * Native image generation returns images in response.candidates[].content.parts[]
+ */
+const extractImageFromResponse = (response) => {
+  try {
+    const candidates = response.candidates || [];
+    for (const candidate of candidates) {
+      const parts = candidate.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData) {
+          const { mimeType, data } = part.inlineData;
+          return `data:${mimeType};base64,${data}`;
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting image from response:', error);
+    return null;
+  }
+};
 
 /**
  * Base prompt template for consistent 5:1 horizontal saree generation
@@ -106,13 +130,16 @@ Focus on showing the traditional 5:1 horizontal layout clearly with these three 
 export const generateMotifs = async (prompt, count = 4, section, keyword) => {
   try {
     const genAI = getClient();
-    const model = genAI.getGenerativeModel({ model: PREVIEW_MODEL });
+    const model = genAI.getGenerativeModel({
+      model: PREVIEW_MODEL,
+      generationConfig: IMAGE_GEN_CONFIG
+    });
     const motifs = [];
 
     // Enhanced prompt for better motif generation
     const enhancedPrompt = `${prompt}
 
-IMPORTANT: Generate a single, high-resolution design motif suitable for Kanjeevaram silk saree ${section}. 
+IMPORTANT: Generate a single, high-resolution design motif suitable for Kanjeevaram silk saree ${section}.
 - Square aspect ratio (1:1)
 - Intricate traditional South Indian textile design
 - Rich detail suitable for silk weaving
@@ -121,24 +148,30 @@ IMPORTANT: Generate a single, high-resolution design motif suitable for Kanjeeva
 
     for (let i = 0; i < count; i++) {
       try {
+        console.log(`🎨 Generating motif ${i + 1}/${count} for ${section}...`);
         const result = await model.generateContent(enhancedPrompt);
-        const response = await result.response;
-        
-        // Note: Standard Gemini models return text, not images
-        // For actual image generation, you need Imagen API or experimental image models
-        // Using placeholder for now - integrate with proper image generation API
-        motifs.push(`https://placehold.co/400x400/8B0000/FFD700?text=${encodeURIComponent(keyword)}+${i + 1}`);
-        console.log(`Generated motif ${i + 1}/${count} for ${section}`);
+        const response = result.response;
+
+        // Extract image from native image generation response
+        const imageUrl = extractImageFromResponse(response);
+
+        if (imageUrl) {
+          motifs.push(imageUrl);
+          console.log(`✅ Generated motif ${i + 1}/${count} for ${section}`);
+        } else {
+          console.warn(`⚠️ No image in response for motif ${i + 1}, using placeholder`);
+          motifs.push(`https://placehold.co/400x400/8B0000/FFD700?text=${encodeURIComponent(keyword)}+${i + 1}`);
+        }
       } catch (error) {
-        console.error(`Error generating motif ${i + 1}:`, error);
+        console.error(`❌ Error generating motif ${i + 1}:`, error);
         motifs.push(`https://placehold.co/400x400/8B0000/FFD700?text=Motif+${i + 1}`);
       }
     }
 
-    console.log(`Generated ${motifs.length} motifs for ${section} with keyword: ${keyword}`);
+    console.log(`✅ Generated ${motifs.length} motifs for ${section} with keyword: ${keyword}`);
     return { motifs, section, keyword };
   } catch (error) {
-    console.error('Error in generateMotifs:', error);
+    console.error('❌ Error in generateMotifs:', error);
     const placeholders = [];
     for (let i = 0; i < count; i++) {
       placeholders.push(`https://placehold.co/400x400/8B0000/FFD700?text=Motif+${i + 1}`);
@@ -163,10 +196,13 @@ IMPORTANT: Generate a single, high-resolution design motif suitable for Kanjeeva
  */
 export const generateSareePreview = async (customPrompt, sareeState, images = {}) => {
   try {
-    console.log('🚀 [PREVIEW] Starting generation with FAST model...');
+    console.log('🚀 [PREVIEW] Starting generation with nano banana model...');
     const genAI = getClient();
-    const model = genAI.getGenerativeModel({ model: PREVIEW_MODEL });
-    
+    const model = genAI.getGenerativeModel({
+      model: PREVIEW_MODEL,
+      generationConfig: IMAGE_GEN_CONFIG
+    });
+
     console.log(`📊 [PREVIEW] Reference images: ${Object.keys(images).length}`);
 
     // Build detailed, context-rich prompt
@@ -229,21 +265,35 @@ ${customPrompt || ''}`;
     console.log('📝 [PREVIEW] Prompt length:', fullPrompt.length, 'characters');
 
     const result = await model.generateContent(contentParts);
-    const response = await result.response;
-    const text = response.text();
-    
+    const response = result.response;
+
     console.log('✅ [PREVIEW] API Response received!');
-    console.log('📄 [PREVIEW] Response text:', text.substring(0, 200) + '...');
-    
-    // Note: Standard Gemini models generate text descriptions, not images
-    // For actual image generation, integrate with Imagen API or Vertex AI
-    // Returning placeholder with saree context
-    console.warn('⚠️ [PREVIEW] Returning placeholder - integrate real image generation API');
-    return {
-      imageUrl: `https://placehold.co/1000x200/C62828/FFD700?text=${encodeURIComponent('Preview: ' + bodyDesc.substring(0, 30))}`,
-      sareeState,
-      description: text
-    };
+
+    // Extract image from native image generation response
+    const imageUrl = extractImageFromResponse(response);
+
+    if (imageUrl) {
+      console.log('🖼️ [PREVIEW] Image generated successfully!');
+      return {
+        imageUrl,
+        sareeState,
+        description: 'Saree preview generated'
+      };
+    } else {
+      // Try to get text description as fallback
+      let text = '';
+      try {
+        text = response.text();
+      } catch (e) {
+        // No text in response
+      }
+      console.warn('⚠️ [PREVIEW] No image in response, returning placeholder');
+      return {
+        imageUrl: `https://placehold.co/1000x200/C62828/FFD700?text=${encodeURIComponent('Preview: ' + bodyDesc.substring(0, 30))}`,
+        sareeState,
+        description: text || 'No image generated'
+      };
+    }
   } catch (error) {
     console.error('❌ [PREVIEW] Error:', error);
     console.error('❌ [PREVIEW] Error details:', error.message);
@@ -270,9 +320,12 @@ ${customPrompt || ''}`;
 export const finalizeDesign = async (customPrompt, sareeState) => {
   try {
     const genAI = getClient();
-    const model = genAI.getGenerativeModel({ model: FINAL_MODEL });
-    
-    console.log(`Generating FINAL saree design with HIGH-QUALITY model...`);
+    const model = genAI.getGenerativeModel({
+      model: FINAL_MODEL,
+      generationConfig: IMAGE_GEN_CONFIG
+    });
+
+    console.log('🚀 [FINAL] Generating saree design with nano banana pro model...');
 
     const bodyDesc = generateDesignDescription('body', sareeState.body.color, sareeState.body.pattern, sareeState.body.motifUrl);
     const borderDesc = generateDesignDescription('border', sareeState.border.color, sareeState.border.pattern, sareeState.border.motifUrl);
@@ -305,17 +358,40 @@ This is the FINAL OUTPUT - make it absolutely stunning and magazine-worthy!
 
 ${customPrompt || ''}`;
 
+    console.log('📤 [FINAL] Sending prompt to Gemini API...');
     const result = await model.generateContent(finalPrompt);
-    const response = await result.response;
-    
-    console.log('Final saree design generated successfully with PRO model');
-    return {
-      imageUrl: `https://placehold.co/1500x300/4A0404/FFD700?text=${encodeURIComponent('Final Design')}`,
-      sareeState,
-      description: response.text()
-    };
+    const response = result.response;
+
+    console.log('✅ [FINAL] API Response received!');
+
+    // Extract image from native image generation response
+    const imageUrl = extractImageFromResponse(response);
+
+    if (imageUrl) {
+      console.log('🖼️ [FINAL] High-quality image generated successfully!');
+      return {
+        imageUrl,
+        sareeState,
+        description: 'Final saree design generated'
+      };
+    } else {
+      // Try to get text description as fallback
+      let text = '';
+      try {
+        text = response.text();
+      } catch (e) {
+        // No text in response
+      }
+      console.warn('⚠️ [FINAL] No image in response, returning placeholder');
+      return {
+        imageUrl: `https://placehold.co/1500x300/4A0404/FFD700?text=${encodeURIComponent('Final Design')}`,
+        sareeState,
+        description: text || 'No image generated'
+      };
+    }
   } catch (error) {
-    console.error('Error in finalizeDesign:', error);
+    console.error('❌ [FINAL] Error:', error);
+    console.error('❌ [FINAL] Error details:', error.message);
     return {
       imageUrl: 'https://placehold.co/1500x300/4A0404/FFD700?text=Final+Design+Error',
       sareeState,
