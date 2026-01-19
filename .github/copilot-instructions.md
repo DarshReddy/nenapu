@@ -18,13 +18,16 @@ sareeState = {
 State flows: `SareeCustomizer` → `ControlPanel` (mutations) + `SareeVisualizer` (display)
 
 ### Gemini Service Layer (`src/services/geminiService.js`)
-- Centralized Google Gemini API integration
-- Three main functions:
+- Centralized Google Gemini API integration with **excellent prompt engineering**
+- Four main functions:
   1. `generateMotifs(prompt, count, section, keyword)` - Generate 4 design motifs
-  2. `generateSareePreview(prompt, sareeState, images)` - Update live preview with multimodal input
-  3. `finalizeDesign(prompt, sareeState)` - Generate final fashion photograph
-- Graceful fallback: Returns placeholder images on API failures
-- All functions handle base64 image encoding/decoding for Gemini API
+  2. `generateInitialPreview(sareeState)` - Generate initial color-only saree
+  3. `generateSareePreview(prompt, sareeState, images)` - Fast preview updates with multimodal input
+  4. `finalizeDesign(prompt, sareeState)` - High-quality final generation
+- **Consistent 5:1 aspect ratio prompts** for all saree generations
+- **Multimodal support**: Passes selected border/body/pallu images as context
+- Two-tier model strategy: Fast (`gemini-1.5-flash`) for previews, Quality (`gemini-1.5-pro`) for finals
+- Graceful fallback: Returns placeholder images (integrate real image generation - see `IMAGE_GENERATION_SETUP.md`)
 
 ### Image Handling Convention
 - Gemini API requires `inlineData` format: `{data: Uint8Array, mimeType: string}`
@@ -122,11 +125,12 @@ yarn build
 - AI: `google-genai` v1.57.0 SDK
 
 ### Gemini SDK Usage
-**Package**: `google-genai` (NOT `google-generativeai`)
-- Client: `new genai.Client({ apiKey })`
-- Model: `gemini-2.0-flash-exp-image-generation`
-- Config: `generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }`
-- Response: Access via `response.candidates[0].content.parts[i].inlineData`
+**Package**: `@google/generative-ai` (NOT `google-genai`)
+- Client: `new GoogleGenerativeAI(apiKey)`
+- **Fast Model** (`gemini-1.5-flash`): Used for live preview updates
+- **Quality Model** (`gemini-1.5-pro`): Used for final high-quality generation
+- Note: Standard Gemini models generate text, not images directly
+- See `IMAGE_GENERATION_SETUP.md` for image generation integration options
 
 ## Common Gotcas
 

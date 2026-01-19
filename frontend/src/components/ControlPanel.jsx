@@ -14,17 +14,24 @@ const ZARI_TYPES = [
   { name: 'Copper', color: '#CD7F32', description: 'Warm rose gold tone' },
 ];
 
-export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZari, applyDesign, isGenerating }) => {
+export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZari, applyDesign, finalizeDesign, isGenerating }) => {
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [finalImageUrl, setFinalImageUrl] = useState(null);
 
-  const handleFinalizeDesign = () => {
+  const handleFinalizeDesign = async () => {
     if (!sareePreviewUrl) {
       toast.error('No design to finalize', {
         description: 'Please apply at least one design to your saree first',
       });
       return;
     }
-    setShowFinalizeModal(true);
+    
+    // Generate high-quality final image
+    const finalUrl = await finalizeDesign();
+    if (finalUrl) {
+      setFinalImageUrl(finalUrl);
+      setShowFinalizeModal(true);
+    }
   };
 
   return (
@@ -112,10 +119,13 @@ export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZa
       {/* Finalize Modal */}
       <FinalizeModal
         isOpen={showFinalizeModal}
-        onClose={() => setShowFinalizeModal(false)}
+        onClose={() => {
+          setShowFinalizeModal(false);
+          setFinalImageUrl(null);
+        }}
         sareeState={sareeState}
-        sareePreviewUrl={sareePreviewUrl}
-      />
+        sareePreviewUrl={finalImageUrl || sareePreviewUrl}
+      />      />
     </div>
   );
 };

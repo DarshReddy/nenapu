@@ -1,6 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { generateSareePreview as generateSareePreviewAPI } from '@/services/geminiService';
+import { 
+  generateSareePreview as generateSareePreviewAPI, 
+  generateInitialPreview,
+  finalizeDesign as finalizeDesignAPI 
+} from '@/services/geminiService';
 import Header from './Header';
 import SareeVisualizer from './SareeVisualizer';
 import ControlPanel from './ControlPanel';
@@ -28,15 +32,44 @@ export const SareeCustomizer = () => {
   const [sareePreviewUrl, setSareePreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Generate initial preview when component mounts
+  useEffect(() => {
+    const loadInitialPreview = async () => {
+      setIsGenerating(true);
+      try {
+        const data = await generateInitialPreview(sareeState);
+        if (data.imageUrl) {
+          setSareePreviewUrl(data.imageUrl);
+        }
+      } catch (error) {
+        console.error('Error generating initial preview:', error);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+    
+    loadInitialPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
   const updatePart = (part, updates) => {
-    setSareeState(prev => ({
-      ...prev,
-      [part]: { ...prev[part], ...updates }
-    }));
+    const newState = {
+      ...sareeState,
+      [part]: { ...sareeState[part], ...updates }
+    };
+    setSareeState(newState);
+    
+    // If color is being updated, regenerate preview
+    if (updates.color) {
+      generateSareePreview(newState);
+    }
   };
 
   const updateZari = (zari) => {
-    setSareeState(prev => ({ ...prev, zari }));
+    const newState = { ...sareeState, zari };
+    setSareeState(newState);
+    // Regenerate preview when zari changes
+    generateSareePreview(newState);
   };
 
   // Helper to convert image URL to base64
@@ -80,30 +113,8 @@ export const SareeCustomizer = () => {
         images.pallu = await imageUrlToBase64(state.pallu.motifUrl);
       }
 
-      // Build prompt describing current saree state
-      const bodyDesc = state.body.motifUrl
-        ? `body featuring the provided body design image as a repeating pattern`
-        : `plain ${state.body.color} colored body`;
-
-      const borderDesc = state.border.motifUrl
-        ? `border featuring the provided border design image as the border pattern`
-        : `plain ${state.border.color} colored border`;
-
-      const palluDesc = state.pallu.motifUrl
-        ? `pallu featuring the provided pallu design image as the pallu artwork`
-        : `plain ${state.pallu.color} colored pallu`;
-
-      const prompt = `Create a high-resolution flat lay photograph of a traditional Kanjeevaram silk saree displayed in full length (5:1 aspect ratio), showing all parts clearly:
-- ${bodyDesc}
-- ${borderDesc}
-- ${palluDesc}
-All woven with ${state.zari} zari thread work.
-
-IMPORTANT: Use the provided reference images to create the actual patterns on the saree. The body pattern should tile/repeat across the main body area. The border pattern should appear on all edges. The pallu design should be prominently featured on the pallu section.
-
-Professional product photography, white/cream background, luxury textile, traditional South Indian silk saree proportions, high detail fabric texture.`;
-
-      const data = await generateSareePreviewAPI(prompt, state, images);
+      // Call API with null prompt to use auto-generated prompt
+      const data = await generateSareePreviewAPI(null, state, images);
       
       if (data.imageUrl) {
         setSareePreviewUrl(data.imageUrl);
@@ -133,6 +144,35 @@ Professional product photography, white/cream background, luxury textile, tradit
     await generateSareePreview(newState);
   };
 
+  // Generate final high-quality design
+  const handleFinalizeDesign = async () => {
+    setIsGenerating(true);
+    try {
+      toast.info('Generating final high-quality design...', {
+        description: 'This may take a moment for best results'
+      });
+      
+      const data = await finalizeDesignAPI(null, sareeState);
+      
+      if (data.imageUrl) {
+        setSareePreviewUrl(data.imageUrl);
+        toast.success('Final design generated!', {
+          description: 'Your masterpiece is ready to download'
+        });
+        return data.imageUrl; // Return URL for modal
+      } else {
+        toast.error('Failed to generate final design');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error generating final design:', error);
+      toast.error('Failed to generate final design');
+      return null;
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -155,6 +195,7 @@ Professional product photography, white/cream background, luxury textile, tradit
             updatePart={updatePart}
             updateZari={updateZari}
             applyDesign={applyDesign}
+            finalizeDesign={handleFinalizeDesign}
             isGenerating={isGenerating}
           />
         </div>
