@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Frontend**: React 19, Shadcn/ui (Radix UI), Tailwind CSS, React Hook Form + Zod
 - **Backend**: FastAPI (Python), Motor (async MongoDB driver)
-- **AI Integration**: Google Imagen 3.0 via Emergent API for image generation
+- **AI Integration**: Google Gemini 2.0 Flash for image generation
 - **Database**: MongoDB
 
 ## Development Commands

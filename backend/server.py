@@ -54,6 +54,7 @@ class FinalizeDesignRequest(BaseModel):
 class SareePreviewRequest(BaseModel):
     prompt: str
     sareeState: dict
+    images: dict = {}  # Optional dict with keys: body, border, pallu containing base64 images
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
@@ -201,17 +202,59 @@ async def generate_saree_preview(request: SareePreviewRequest):
     """
     Generate a saree preview image based on current customization state.
     Called each time user applies a design to update the preview.
+    Accepts reference images for body, border, and pallu patterns.
     """
     try:
         # Initialize Google GenAI client
         client = genai.Client(api_key=os.environ.get('GOOGLE_API_KEY'))
 
-        logger.info(f"Generating saree preview with prompt: {request.prompt[:100]}...")
+        logger.info(f"Generating saree preview with {len(request.images)} reference images...")
 
-        # Generate image using Gemini 2.0 Flash
+        # Build multimodal content with images and text
+        content_parts = []
+
+        # Add reference images with labels
+        if request.images:
+            if request.images.get('border'):
+                border_data = request.images['border']
+                if border_data.startswith('data:'):
+                    # Extract base64 data from data URL
+                    parts = border_data.split(',', 1)
+                    if len(parts) == 2:
+                        mime_match = parts[0].split(':')[1].split(';')[0] if ':' in parts[0] else 'image/png'
+                        image_bytes = base64.b64decode(parts[1])
+                        content_parts.append("Border design reference image:")
+                        content_parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_match))
+
+            if request.images.get('body'):
+                body_data = request.images['body']
+                if body_data.startswith('data:'):
+                    parts = body_data.split(',', 1)
+                    if len(parts) == 2:
+                        mime_match = parts[0].split(':')[1].split(';')[0] if ':' in parts[0] else 'image/png'
+                        image_bytes = base64.b64decode(parts[1])
+                        content_parts.append("Body pattern reference image:")
+                        content_parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_match))
+
+            if request.images.get('pallu'):
+                pallu_data = request.images['pallu']
+                if pallu_data.startswith('data:'):
+                    parts = pallu_data.split(',', 1)
+                    if len(parts) == 2:
+                        mime_match = parts[0].split(':')[1].split(';')[0] if ':' in parts[0] else 'image/png'
+                        image_bytes = base64.b64decode(parts[1])
+                        content_parts.append("Pallu design reference image:")
+                        content_parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_match))
+
+        # Add the text prompt
+        content_parts.append(request.prompt)
+
+        logger.info(f"Sending {len(content_parts)} content parts to Gemini")
+
+        # Generate image using Gemini 2.0 Flash with multimodal input
         response = client.models.generate_content(
             model='gemini-2.0-flash-exp-image-generation',
-            contents=request.prompt,
+            contents=content_parts,
             config=types.GenerateContentConfig(
                 response_modalities=['TEXT', 'IMAGE']
             )

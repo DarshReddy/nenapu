@@ -38,36 +38,78 @@ export const SareeCustomizer = () => {
     setSareeState(prev => ({ ...prev, zari }));
   };
 
+  // Helper to convert image URL to base64
+  const imageUrlToBase64 = async (url) => {
+    if (!url) return null;
+    // If already base64, return as-is
+    if (url.startsWith('data:')) {
+      return url;
+    }
+    // For local URLs, fetch and convert
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error converting image to base64:', error);
+      return null;
+    }
+  };
+
   // Generate saree preview with current state
   const generateSareePreview = useCallback(async (updatedState) => {
     const state = updatedState || sareeState;
     setIsGenerating(true);
 
     try {
+      // Collect images for sections that have motifs
+      const images = {};
+
+      if (state.body.motifUrl) {
+        images.body = await imageUrlToBase64(state.body.motifUrl);
+      }
+      if (state.border.motifUrl) {
+        images.border = await imageUrlToBase64(state.border.motifUrl);
+      }
+      if (state.pallu.motifUrl) {
+        images.pallu = await imageUrlToBase64(state.pallu.motifUrl);
+      }
+
       // Build prompt describing current saree state
       const bodyDesc = state.body.motifUrl
-        ? `body with ${state.body.pattern || 'custom'} design pattern`
+        ? `body featuring the provided body design image as a repeating pattern`
         : `plain ${state.body.color} colored body`;
 
       const borderDesc = state.border.motifUrl
-        ? `border with ${state.border.pattern || 'custom'} design pattern`
+        ? `border featuring the provided border design image as the border pattern`
         : `plain ${state.border.color} colored border`;
 
       const palluDesc = state.pallu.motifUrl
-        ? `pallu with ${state.pallu.pattern || 'custom'} design pattern`
+        ? `pallu featuring the provided pallu design image as the pallu artwork`
         : `plain ${state.pallu.color} colored pallu`;
 
-      const prompt = `A high-resolution flat lay photograph of a traditional Kanjeevaram silk saree displayed in full length, showing all parts clearly:
+      const prompt = `Create a high-resolution flat lay photograph of a traditional Kanjeevaram silk saree displayed in full length (5:1 aspect ratio), showing all parts clearly:
 - ${bodyDesc}
 - ${borderDesc}
 - ${palluDesc}
 All woven with ${state.zari} zari thread work.
-Professional product photography, white/cream background, luxury textile, full saree visible from top to bottom, traditional South Indian silk saree proportions (approximately 5.5 meters length shown folded elegantly), high detail fabric texture.`;
+
+IMPORTANT: Use the provided reference images to create the actual patterns on the saree. The body pattern should tile/repeat across the main body area. The border pattern should appear on all edges. The pallu design should be prominently featured on the pallu section.
+
+Professional product photography, white/cream background, luxury textile, traditional South Indian silk saree proportions, high detail fabric texture.`;
 
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/generate-saree-preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, sareeState: state })
+        body: JSON.stringify({
+          prompt,
+          sareeState: state,
+          images // Pass the actual images
+        })
       });
 
       if (!response.ok) throw new Error('Failed to generate preview');
