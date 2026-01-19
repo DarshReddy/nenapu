@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions - Threads of Nenapu
 
 ## Project Overview
-Full-stack Kanjeevaram silk saree customization web app. Users customize three saree sections (body, border, pallu) with colors/patterns, generate AI motifs via Google Gemini 2.0 Flash, and receive final visualizations.
+Frontend-only Kanjeevaram silk saree customization web app. Users customize three saree sections (body, border, pallu) with colors/patterns, generate AI motifs via Google Gemini 2.0 Flash API (called directly from browser), and receive final visualizations. Built for easy deployment on free hosting platforms (Vercel, Netlify, GitHub Pages).
 
 ## Architecture & Data Flow
 
@@ -17,21 +17,20 @@ sareeState = {
 ```
 State flows: `SareeCustomizer` → `ControlPanel` (mutations) + `SareeVisualizer` (display)
 
-### Backend Architecture (`backend/server.py`)
-- Single-file FastAPI app with `/api` prefix via `APIRouter`
-- All endpoints prefixed with `/api` (e.g., `/api/generate-motifs`)
-- Gemini integration uses multimodal content with base64 images
-- MongoDB via Motor (async driver) for tracking client status
-- Graceful fallback: Returns placeholder images on AI failures
+### Gemini Service Layer (`src/services/geminiService.js`)
+- Centralized Google Gemini API integration
+- Three main functions:
+  1. `generateMotifs(prompt, count, section, keyword)` - Generate 4 design motifs
+  2. `generateSareePreview(prompt, sareeState, images)` - Update live preview with multimodal input
+  3. `finalizeDesign(prompt, sareeState)` - Generate final fashion photograph
+- Graceful fallback: Returns placeholder images on API failures
+- All functions handle base64 image encoding/decoding for Gemini API
 
-### Key API Endpoints
-1. **`POST /api/generate-motifs`**: Generates 4 design motifs per request
-   - Returns: `{motifs: [base64DataURLs], section, keyword}`
-2. **`POST /api/generate-saree-preview`**: Updates live preview with new designs
-   - Accepts: `{prompt, sareeState, images: {body?, border?, pallu?}}`
-   - Multimodal: Sends reference images + text to Gemini
-3. **`POST /api/finalize-design`**: Generates final fashion photograph
-4. **`GET/POST /api/status`**: Health check + MongoDB client tracking
+### Image Handling Convention
+- Gemini API requires `inlineData` format: `{data: Uint8Array, mimeType: string}`
+- Frontend converts between base64 data URLs and byte arrays
+- `base64ToBytes()` helper in geminiService handles conversions
+- Components pass base64 data URLs, service converts for API
 
 ## Critical Development Patterns
 
@@ -47,86 +46,117 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'  // For conditional classnames
 ```
 
-### Image Handling Convention
-- Frontend sends base64 data URLs to backend
-- `imageUrlToBase64()` helper in `SareeCustomizer.jsx` converts local URLs
-- Backend extracts base64 from `data:image/png;base64,xxx` format
-- Gemini API requires `types.Part.from_bytes(data, mime_type)`
+### Gemini API Integration Pattern
+All components import from `@/services/geminiService`:
+```jsx
+import { generateMotifs, generateSareePreview, finalizeDesign } from '@/services/geminiService';
+
+// Usage
+const data = await generateMotifs(prompt, 4, 'border', 'peacock');
+// Returns: { motifs: [base64DataURLs], section, keyword }
+```
 
 ### Error Handling Strategy
-Backend returns placeholders on failures (e.g., `placehold.co` URLs) instead of 500 errors. Frontend receives valid responses and shows toast notifications via `sonner`.
+Service layer returns placeholders on failures (e.g., `placehold.co` URLs) instead of throwing errors. Components check for `data.error` and show toast notifications via `sonner`.
 
 ## Development Workflows
 
-### Starting Development Servers
+### Starting Development
 ```bash
-# Terminal 1 - Frontend (port 3000)
-cd frontend && yarn start
-
-# Terminal 2 - Backend (default port 8000)
-cd backend && python server.py
-# OR with auto-reload:
-uvicorn server:app --reload
+cd frontend
+yarn install          # First time only
+yarn start           # Dev server on port 3000
 ```
 
 ### Environment Variables Required
-**Backend `.env`**:
-```
-GOOGLE_API_KEY=<gemini-api-key>
-MONGO_URL=<mongodb-connection-string>
-DB_NAME=nenapu
-CORS_ORIGINS=http://localhost:3000
+Create `frontend/.env` from `.env.example`:
+```bash
+cp .env.example .env
+# Edit .env and add your Gemini API key
 ```
 
-**Frontend `.env`** (create if missing):
-```
-REACT_APP_BACKEND_URL=http://localhost:8000
+**Required**:
+- `REACT_APP_GOOGLE_API_KEY` - Get from https://aistudio.google.com/app/apikey
+
+**Optional**:
+- `ENABLE_HEALTH_CHECK=true` - Activates webpack health monitoring at `/health`
+
+### Deployment (Free Options)
+**Vercel** (Recommended):
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# From frontend/ directory
+vercel
+
+# Add environment variable in Vercel dashboard:
+# REACT_APP_GOOGLE_API_KEY = your_key
 ```
 
-### Health Check Plugin (Optional)
-Set `ENABLE_HEALTH_CHECK=true` in frontend to activate webpack health monitoring at `/health` and `/health/compilation`. Plugin tracks compile times, errors, warnings via `WebpackHealthPlugin`.
+**Netlify**:
+```bash
+# Build
+yarn build
+
+# Deploy build/ folder
+# Add REACT_APP_GOOGLE_API_KEY in Netlify environment variables
+```
+
+**GitHub Pages**:
+```bash
+# Add "homepage": "https://yourusername.github.io/repo" to package.json
+yarn build
+# Deploy build/ folder to gh-pages branch
+```
 
 ## Tech Stack Specifics
 
-### Frontend Dependencies
+### Dependencies
 - React 19 with functional components + hooks
 - Tailwind CSS with HSL CSS variables (`tailwind.config.js`)
-- Form validation: React Hook Form + Zod (not yet implemented)
+- Shadcn/ui (Radix UI primitives)
 - Icons: `lucide-react`
 - Toast notifications: `sonner`
 - Build tool: Create React App + CRACO (for config customization)
+- AI: `google-genai` v1.57.0 SDK
 
-### Backend Dependencies
-- FastAPI with Pydantic v2 models (`ConfigDict` for MongoDB compatibility)
-- Motor (async MongoDB driver, not pymongo)
-- Google GenAI SDK (`google-genai` package, not `google-generativeai`)
-- Uses `genai.Client()` not `GenerativeModel`
+### Gemini SDK Usage
+**Package**: `google-genai` (NOT `google-generativeai`)
+- Client: `new genai.Client({ apiKey })`
+- Model: `gemini-2.0-flash-exp-image-generation`
+- Config: `generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }`
+- Response: Access via `response.candidates[0].content.parts[i].inlineData`
 
-## Common Gotchas
+## Common Gotcas
 
-1. **Logging**: Backend uses `logging.getLogger(__name__)` at module level. Always log motif generation progress and errors.
+1. **API Key Exposure**: Since this is frontend-only, API key is visible in browser. Acceptable for internal team use only.
 
-2. **MongoDB _id Handling**: Use `ConfigDict(extra="ignore")` in Pydantic models and exclude `_id` in queries: `.find({}, {"_id": 0})`
+2. **Gemini Response Format**: Images come as `inlineData.data` (Uint8Array), must convert to base64 for display:
+   ```js
+   const base64 = btoa(String.fromCharCode(...new Uint8Array(data)));
+   const dataUrl = `data:${mimeType};base64,${base64}`;
+   ```
 
-3. **CORS Configuration**: Backend CORS_ORIGINS must include frontend URL for local dev
+3. **CSS Variables**: Theme colors defined in `index.css` as CSS vars, referenced in `tailwind.config.js` via `hsl(var(--primary))`
 
-4. **Gemini Model Name**: Use `gemini-2.0-flash-exp-image-generation` with `response_modalities=['TEXT', 'IMAGE']`
+4. **Health Check Plugin**: Only activates when `ENABLE_HEALTH_CHECK=true` in .env
 
-5. **CSS Variables**: Theme colors defined in `index.css` as CSS vars, referenced in `tailwind.config.js` via `hsl(var(--primary))`
+5. **State Updates**: Always use functional setState with spread operators to preserve nested state
 
 ## File Modification Guidelines
 
 - **Adding UI Components**: Use `npx shadcn@latest add <component>` to add new Shadcn components
-- **State Updates**: Always use functional setState with spread operators to preserve nested state
-- **API Changes**: Update both route handler AND corresponding Pydantic model in `server.py`
+- **API Changes**: Update functions in `src/services/geminiService.js`
 - **Styling**: Prefer Tailwind utility classes; use `cn()` for conditional classes
+- **New Gemini Calls**: Follow existing pattern in geminiService with error handling and placeholders
 
 ## Testing & Debugging
 
-- Frontend: React DevTools for component state inspection
-- Backend: FastAPI auto-docs at `http://localhost:8000/docs`
-- Network: Check browser DevTools Network tab for API responses with base64 images
-- Logs: Backend logs include motif generation progress and error details
+- React DevTools for component state inspection
+- Browser Console for Gemini API responses and errors
+- Network tab to verify Gemini API calls (look for `generativelanguage.googleapis.com`)
+- Service layer logs all API calls with `console.log/error`
 
 ## Design System Colors
 South Indian luxury palette:

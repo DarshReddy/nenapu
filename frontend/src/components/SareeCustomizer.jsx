@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { generateSareePreview as generateSareePreviewAPI } from '@/services/geminiService';
 import Header from './Header';
 import SareeVisualizer from './SareeVisualizer';
 import ControlPanel from './ControlPanel';
@@ -102,22 +103,13 @@ IMPORTANT: Use the provided reference images to create the actual patterns on th
 
 Professional product photography, white/cream background, luxury textile, traditional South Indian silk saree proportions, high detail fabric texture.`;
 
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/generate-saree-preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          sareeState: state,
-          images // Pass the actual images
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to generate preview');
-
-      const data = await response.json();
+      const data = await generateSareePreviewAPI(prompt, state, images);
+      
       if (data.imageUrl) {
         setSareePreviewUrl(data.imageUrl);
         toast.success('Saree preview updated!');
+      } else if (data.error) {
+        toast.error('Failed to generate preview');
       }
     } catch (error) {
       console.error('Error generating saree preview:', error);

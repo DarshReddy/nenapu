@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Wand2, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { generateMotifs as generateMotifsAPI } from '@/services/geminiService';
 
 const BORDER_DESIGNS = [
   { name: 'Temple Border', type: 'Temple', image: '/designs/border/temple_border.png' },
@@ -81,20 +82,7 @@ export const DesignAccordion = ({ sareeState, updatePart, applyDesign, isGenerat
 
       const prompt = sectionPrompts[section];
 
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/generate-motifs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          count: 4,
-          section,
-          keyword
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to generate motifs');
-
-      const data = await response.json();
+      const data = await generateMotifsAPI(prompt, 4, section, keyword);
 
       setGeneratedMotifs(prev => ({
         ...prev,
