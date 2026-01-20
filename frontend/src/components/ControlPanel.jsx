@@ -14,7 +14,7 @@ const ZARI_TYPES = [
   { name: 'Copper', color: '#CD7F32', description: 'Warm rose gold tone' },
 ];
 
-export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZari, applyDesign, finalizeDesign, isGenerating }) => {
+export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZari, applyColors, applyDesign, finalizeDesign, isGenerating }) => {
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [finalImageUrl, setFinalImageUrl] = useState(null);
 
@@ -66,7 +66,8 @@ export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZa
       {/* Signature Silk Palette */}
       <SilkColorPalette
         sareeState={sareeState}
-        updatePart={updatePart}
+        applyColors={applyColors}
+        isGenerating={isGenerating}
       />
 
       {/* Global Zari Selection */}
@@ -125,7 +126,7 @@ export const ControlPanel = ({ sareeState, sareePreviewUrl, updatePart, updateZa
         }}
         sareeState={sareeState}
         sareePreviewUrl={finalImageUrl || sareePreviewUrl}
-      />      />
+      />
     </div>
   );
 };

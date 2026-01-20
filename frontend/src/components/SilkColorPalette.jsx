@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Palette } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Palette, Paintbrush } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TRADITIONAL_COLORS = [
@@ -14,18 +15,49 @@ const TRADITIONAL_COLORS = [
   { name: 'Kumkum Orange', value: '#FF6347', description: 'Sacred vermillion' },
 ];
 
-export const SilkColorPalette = ({ sareeState, updatePart }) => {
+const SECTIONS = [
+  { id: 'body', label: 'Body', description: 'Main fabric area' },
+  { id: 'border', label: 'Border', description: 'Edge detailing' },
+  { id: 'pallu', label: 'Pallu', description: 'Decorative end' },
+];
+
+export const SilkColorPalette = ({ sareeState, applyColors, isGenerating }) => {
+  // Local state for color selections (independent of sareeState until applied)
+  const [localColors, setLocalColors] = useState({
+    body: sareeState.body.color || '',
+    border: sareeState.border.color || '',
+    pallu: sareeState.pallu.color || '',
+  });
   const [activeSection, setActiveSection] = useState('body');
-  
-  const handleColorSelect = (color, name) => {
-    updatePart(activeSection, { color });
-    toast.success(`${name} applied`, {
-      description: `Color updated for ${activeSection}`,
-    });
+
+  const handleColorSelect = (color, colorName) => {
+    setLocalColors(prev => ({
+      ...prev,
+      [activeSection]: color
+    }));
+    toast.success(`${colorName} selected for ${activeSection}`);
   };
 
-  const handleCustomColor = (e) => {
-    updatePart(activeSection, { color: e.target.value });
+  const handleCustomColor = (section, color) => {
+    setLocalColors(prev => ({
+      ...prev,
+      [section]: color
+    }));
+  };
+
+  const allColorsSelected = localColors.body && localColors.border && localColors.pallu;
+
+  const handleApplyColors = () => {
+    if (!allColorsSelected) {
+      toast.error('Please select colors for all sections', {
+        description: 'Body, Border, and Pallu colors are required'
+      });
+      return;
+    }
+    applyColors(localColors);
+    toast.success('Colors applied!', {
+      description: 'Generating saree preview...'
+    });
   };
 
   return (
@@ -35,105 +67,131 @@ export const SilkColorPalette = ({ sareeState, updatePart }) => {
           <Palette className="w-5 h-5 text-secondary" />
           <CardTitle className="text-xl text-primary">Signature Silk Palette</CardTitle>
         </div>
-        <CardDescription>Traditional Kanchipuram colors with authentic silk finish</CardDescription>
+        <CardDescription>Select colors for all three sections, then apply to generate preview</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Section Selector */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Apply Color To:</Label>
-          <div className="flex gap-2">
-            {['body', 'border', 'pallu'].map((section) => (
+        {/* Section Color Status */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Color Selection Status</Label>
+          <div className="grid grid-cols-3 gap-3">
+            {SECTIONS.map((section) => (
               <button
-                key={section}
-                onClick={() => setActiveSection(section)}
-                className={
-                  activeSection === section
-                    ? 'px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm transition-all shadow-md'
-                    : 'px-4 py-2 rounded-lg bg-muted text-muted-foreground font-medium text-sm hover:bg-muted/80 transition-all'
-                }
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`p-3 rounded-lg border-2 transition-all ${
+                  activeSection === section.id
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-border hover:border-secondary/50'
+                }`}
               >
-                {section.charAt(0).toUpperCase() + section.slice(1)}
+                <div className="flex flex-col items-center gap-2">
+                  <div
+                    className={`w-10 h-10 rounded-lg border-2 ${
+                      localColors[section.id] ? 'border-secondary shadow-sm' : 'border-dashed border-muted-foreground'
+                    }`}
+                    style={{ backgroundColor: localColors[section.id] || '#f5f5f5' }}
+                  >
+                    {!localColors[section.id] && (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                        ?
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">{section.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {localColors[section.id] ? 'Selected' : 'Not set'}
+                    </p>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Current Color Display */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Current Color</Label>
-          <div className="flex gap-3 items-center">
-            <div 
-              className="w-16 h-16 rounded-lg border-2 border-border shadow-medium relative overflow-hidden group"
-              style={{ backgroundColor: sareeState[activeSection].color }}
-            >
-              {/* Silk texture overlay */}
-              <div className="absolute inset-0 opacity-30" style={{
-                backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 4px)',
-              }}></div>
-              <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/15 opacity-20"></div>
-            </div>
-            <div className="flex-1">
+        {/* Active Section Color Picker */}
+        <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Select Color for {SECTIONS.find(s => s.id === activeSection)?.label}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="color"
+                value={localColors[activeSection] || '#888888'}
+                onChange={(e) => handleCustomColor(activeSection, e.target.value)}
+                className="h-8 w-12 cursor-pointer p-0 border-0"
+              />
               <Input
                 type="text"
-                value={sareeState[activeSection].color.toUpperCase()}
-                onChange={(e) => updatePart(activeSection, { color: e.target.value })}
-                className="font-mono text-sm"
+                value={localColors[activeSection]?.toUpperCase() || ''}
+                onChange={(e) => handleCustomColor(activeSection, e.target.value)}
+                className="font-mono text-xs w-24"
                 placeholder="#000000"
               />
-              <p className="text-xs text-muted-foreground mt-1">Hex color code</p>
             </div>
-            <Input
-              type="color"
-              value={sareeState[activeSection].color}
-              onChange={handleCustomColor}
-              className="h-16 w-16 cursor-pointer"
-            />
           </div>
-        </div>
-        
-        {/* Traditional Color Swatches */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Traditional Silk Swatches</Label>
-          <div className="grid grid-cols-3 gap-3">
+
+          {/* Traditional Color Swatches */}
+          <div className="grid grid-cols-6 gap-2">
             {TRADITIONAL_COLORS.map((color) => (
               <button
                 key={color.value}
                 onClick={() => handleColorSelect(color.value, color.name)}
                 className="group relative"
+                title={`${color.name} - ${color.description}`}
               >
-                <div className={
-                  sareeState[activeSection].color.toUpperCase() === color.value.toUpperCase()
-                    ? 'p-1 rounded-xl bg-secondary shadow-gold'
-                    : 'p-1 rounded-xl bg-transparent hover:bg-muted transition-all'
-                }>
-                  <div 
-                    className="aspect-square rounded-lg overflow-hidden shadow-soft relative"
+                <div className={`p-0.5 rounded-lg transition-all ${
+                  localColors[activeSection]?.toUpperCase() === color.value.toUpperCase()
+                    ? 'bg-secondary shadow-gold'
+                    : 'bg-transparent hover:bg-muted'
+                }`}>
+                  <div
+                    className="aspect-square rounded-md overflow-hidden shadow-soft relative"
                     style={{ backgroundColor: color.value }}
                   >
                     {/* Silk-finish texture */}
                     <div className="absolute inset-0 opacity-30" style={{
                       backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, transparent 2px, transparent 4px)',
                     }}></div>
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20 opacity-20"></div>
-                    
-                    {sareeState[activeSection].color.toUpperCase() === color.value.toUpperCase() && (
+                    {localColors[activeSection]?.toUpperCase() === color.value.toUpperCase() && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
+                        <div className="w-3 h-3 rounded-full bg-white shadow-md"></div>
                       </div>
                     )}
                   </div>
                 </div>
-                <p className="text-xs font-medium text-foreground mt-2 text-center">{color.name}</p>
-                <p className="text-xs text-muted-foreground text-center">{color.description}</p>
+                <p className="text-[10px] font-medium text-foreground mt-1 text-center truncate">{color.name}</p>
               </button>
             ))}
           </div>
         </div>
+
+        {/* Apply Button */}
+        <Button
+          onClick={handleApplyColors}
+          disabled={!allColorsSelected || isGenerating}
+          className="w-full"
+          size="lg"
+        >
+          <Paintbrush className="mr-2 h-4 w-4" />
+          {isGenerating ? 'Generating Preview...' : 'Apply Colors & Generate Preview'}
+        </Button>
+
+        {!allColorsSelected && (
+          <p className="text-xs text-center text-muted-foreground">
+            Select colors for {
+              [
+                !localColors.body && 'Body',
+                !localColors.border && 'Border',
+                !localColors.pallu && 'Pallu'
+              ].filter(Boolean).join(', ')
+            } to enable preview
+          </p>
+        )}
       </CardContent>
     </Card>
   );
 };
-
-import { useState } from 'react';
 
 export default SilkColorPalette;

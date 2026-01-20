@@ -5,9 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Loader2, Wand2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateMotifs as generateMotifsAPI } from '@/services/geminiService';
+
+// Category and customization options
+const BORDER_CATEGORIES = ['Temple', 'Floral', 'Geometric', 'Animal', 'Traditional', 'Sacred'];
+const BORDER_SIZES = [
+  { label: 'Small (1")', value: 'Small', inches: 1 },
+  { label: 'Medium (2")', value: 'Medium', inches: 2 },
+  { label: 'Large (3")', value: 'Large', inches: 3 },
+  { label: 'Extra Large (4")', value: 'XLarge', inches: 4 }
+];
+const BODY_CATEGORIES = ['Plain', 'Buttas', 'Checks', 'Paisley', 'Geometric', 'Forest', 'Korvai', 'Stripes'];
+const PALLU_CATEGORIES = ['Grand', 'Temple', 'Mythical', 'Floral', 'Geometric', 'Animal', 'Minimal'];
+const ZARI_LEVELS = ['Light', 'Medium', 'Heavy'];
+import { 
+  generateBorderMotifs,
+  generateBodyMotifs,
+  generatePalluMotifs
+} from '@/services/geminiService';
 
 const BORDER_DESIGNS = [
   { name: 'Temple Border', type: 'Temple', image: '/designs/border/temple_border.png' },
@@ -72,17 +89,36 @@ export const DesignAccordion = ({ sareeState, updatePart, applyDesign, isGenerat
 
     try {
       const zariType = sareeState.zari;
+      let data;
 
-      // Section-specific prompt descriptions with keyword + zari
-      const sectionPrompts = {
-        border: `A single high-resolution Kanjeevaram saree border design featuring ${keyword}, traditional South Indian temple border, ${zariType} zari work, intricate weave pattern suitable for saree edge, cream/off-white background, seamless horizontal pattern, textile design`,
-        body: `A single high-resolution Kanjeevaram saree body pattern featuring ${keyword}, traditional South Indian textile design, ${zariType} zari accents, repeating pattern for saree main fabric, cream/off-white background, seamless tileable pattern, textile design`,
-        pallu: `A single high-resolution Kanjeevaram saree pallu design featuring ${keyword}, grand traditional South Indian pallu artwork, ${zariType} zari work, elaborate and ornate design suitable for saree end piece, cream/off-white background, rich detailed pattern, textile design`
-      };
-
-      const prompt = sectionPrompts[section];
-
-      const data = await generateMotifsAPI(prompt, 4, section, keyword);
+      // Call section-specific generation function
+      if (section === 'border') {
+        const { category, size, sizeInches } = sareeState.border;
+        data = await generateBorderMotifs(
+          keyword,
+          category,
+          size,
+          sizeInches,
+          zariType,
+          4
+        );
+      } else if (section === 'body') {
+        const { category, zariLevel } = sareeState.body;
+        data = await generateBodyMotifs(
+          keyword,
+          category,
+          zariLevel,
+          4
+        );
+      } else if (section === 'pallu') {
+        const { category, zariLevel } = sareeState.pallu;
+        data = await generatePalluMotifs(
+          keyword,
+          category,
+          zariLevel,
+          4
+        );
+      }
 
       setGeneratedMotifs(prev => ({
         ...prev,
@@ -130,6 +166,127 @@ export const DesignAccordion = ({ sareeState, updatePart, applyDesign, isGenerat
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-4 pt-4">
+        {/* Section-specific Settings */}
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-4">
+            <Label className="text-sm font-semibold text-primary">Design Settings</Label>
+
+            {section === 'border' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Category</Label>
+                  <Select
+                    value={sareeState.border.category}
+                    onValueChange={(value) => updatePart('border', { category: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BORDER_CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Border Size</Label>
+                  <Select
+                    value={sareeState.border.size}
+                    onValueChange={(value) => {
+                      const sizeData = BORDER_SIZES.find(s => s.value === value);
+                      updatePart('border', { size: value, sizeInches: sizeData.inches });
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BORDER_SIZES.map(size => (
+                        <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {section === 'body' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Pattern Category</Label>
+                  <Select
+                    value={sareeState.body.category}
+                    onValueChange={(value) => updatePart('body', { category: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BODY_CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Zari Level</Label>
+                  <Select
+                    value={sareeState.body.zariLevel}
+                    onValueChange={(value) => updatePart('body', { zariLevel: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ZARI_LEVELS.map(level => (
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {section === 'pallu' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Design Category</Label>
+                  <Select
+                    value={sareeState.pallu.category}
+                    onValueChange={(value) => updatePart('pallu', { category: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PALLU_CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Zari Level</Label>
+                  <Select
+                    value={sareeState.pallu.zariLevel}
+                    onValueChange={(value) => updatePart('pallu', { zariLevel: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ZARI_LEVELS.map(level => (
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* AI Search */}
         <Card className="bg-gradient-to-br from-secondary/5 to-accent/10 border-secondary/20">
           <CardContent className="p-4 space-y-3">

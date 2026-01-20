@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,6 +21,50 @@ const PATTERNS = [
 ];
 
 const ZARI_TYPES = ['Gold', 'Silver', 'Copper'];
+
+// New category options for each section
+const BORDER_CATEGORIES = [
+  'Temple',
+  'Floral',
+  'Geometric',
+  'Animal',
+  'Traditional',
+  'Sacred'
+];
+
+const BORDER_SIZES = [
+  { label: 'Small', value: 'Small', inches: 1 },
+  { label: 'Medium', value: 'Medium', inches: 2 },
+  { label: 'Large', value: 'Large', inches: 3 },
+  { label: 'Extra Large', value: 'XLarge', inches: 4 }
+];
+
+const BODY_CATEGORIES = [
+  'Plain',
+  'Buttas',
+  'Checks',
+  'Paisley',
+  'Geometric',
+  'Forest',
+  'Korvai',
+  'Stripes'
+];
+
+const PALLU_CATEGORIES = [
+  'Grand',
+  'Temple',
+  'Mythical',
+  'Floral',
+  'Geometric',
+  'Animal',
+  'Minimal'
+];
+
+const ZARI_LEVELS = [
+  'Light',
+  'Medium',
+  'Heavy'
+];
 
 const COLOR_PRESETS = [
   { name: 'Classic Maroon', value: '#8B0000' },
@@ -53,6 +98,22 @@ export const PartCustomizer = ({ part, partState, updatePart, onGenerate }) => {
     });
   };
 
+  const handleCategoryChange = (category) => {
+    updatePart(part, { category });
+    toast.success(`${category} category selected`);
+  };
+
+  const handleBorderSizeChange = (size) => {
+    const sizeData = BORDER_SIZES.find(s => s.value === size);
+    updatePart(part, { size: sizeData.value, sizeInches: sizeData.inches });
+    toast.success(`${sizeData.label} border selected`);
+  };
+
+  const handleZariLevelChange = (level) => {
+    updatePart(part, { zariLevel: level });
+    toast.success(`${level} zari level selected`);
+  };
+
   const handleMotifUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -67,6 +128,108 @@ export const PartCustomizer = ({ part, partState, updatePart, onGenerate }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Design Category Selection */}
+      <Card className="shadow-soft border-border/50">
+        <CardHeader>
+          <CardTitle className="text-xl text-primary">Design Category</CardTitle>
+          <CardDescription>Choose the design style for your {part}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {part === 'border' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Border Category</Label>
+                <Select value={partState.category} onValueChange={handleCategoryChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BORDER_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Border Size</Label>
+                <Select value={partState.size} onValueChange={handleBorderSizeChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BORDER_SIZES.map(size => (
+                      <SelectItem key={size.value} value={size.value}>
+                        {size.label} ({size.inches}" wide)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          {part === 'body' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Body Pattern Category</Label>
+                <Select value={partState.category} onValueChange={handleCategoryChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BODY_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Zari Level</Label>
+                <Select value={partState.zariLevel} onValueChange={handleZariLevelChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ZARI_LEVELS.map(level => (
+                      <SelectItem key={level} value={level}>{level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          {part === 'pallu' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Pallu Design Category</Label>
+                <Select value={partState.category} onValueChange={handleCategoryChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PALLU_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Zari Level</Label>
+                <Select value={partState.zariLevel} onValueChange={handleZariLevelChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ZARI_LEVELS.map(level => (
+                      <SelectItem key={level} value={level}>{level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Color Selection */}
       <Card className="shadow-soft border-border/50">
         <CardHeader>

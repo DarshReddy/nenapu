@@ -1,9 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { 
-  generateSareePreview as generateSareePreviewAPI, 
-  generateInitialPreview,
-  finalizeDesign as finalizeDesignAPI 
+import {
+  generateSareePreview as generateSareePreviewAPI,
+  finalizeDesign as finalizeDesignAPI
 } from '@/services/geminiService';
 import Header from './Header';
 import SareeVisualizer from './SareeVisualizer';
@@ -13,63 +12,60 @@ export const SareeCustomizer = () => {
   const [sareeState, setSareeState] = useState({
     zari: 'Gold', // Global zari setting for entire saree
     body: {
-      color: '#C62828',
+      color: '',  // Initially empty - user must select
       pattern: '',
-      motifUrl: ''
+      motifUrl: '',
+      category: 'Plain',  // Body pattern category
+      zariLevel: 'Medium'  // Zari intensity for body
     },
     border: {
-      color: '#D4AF37',
+      color: '',  // Initially empty - user must select
       pattern: '',
-      motifUrl: ''
+      motifUrl: '',
+      category: 'Temple',  // Border design category
+      size: 'Medium',      // Border width
+      sizeInches: 2        // Border width in inches
     },
     pallu: {
-      color: '#4A0404',
+      color: '',  // Initially empty - user must select
       pattern: '',
-      motifUrl: ''
+      motifUrl: '',
+      category: 'Grand',   // Pallu design category
+      zariLevel: 'Heavy'   // Zari intensity for pallu
     }
   });
 
   const [sareePreviewUrl, setSareePreviewUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Generate initial preview when component mounts
-  useEffect(() => {
-    const loadInitialPreview = async () => {
-      setIsGenerating(true);
-      try {
-        const data = await generateInitialPreview(sareeState);
-        if (data.imageUrl) {
-          setSareePreviewUrl(data.imageUrl);
-        }
-      } catch (error) {
-        console.error('Error generating initial preview:', error);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-    
-    loadInitialPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
-
+  // Update part without triggering preview regeneration
   const updatePart = (part, updates) => {
     const newState = {
       ...sareeState,
       [part]: { ...sareeState[part], ...updates }
     };
     setSareeState(newState);
-    
-    // If color is being updated, regenerate preview
-    if (updates.color) {
-      generateSareePreview(newState);
-    }
+  };
+
+  // Apply colors and generate preview (called from SilkColorPalette)
+  const applyColors = async (colors) => {
+    const newState = {
+      ...sareeState,
+      body: { ...sareeState.body, color: colors.body },
+      border: { ...sareeState.border, color: colors.border },
+      pallu: { ...sareeState.pallu, color: colors.pallu }
+    };
+    setSareeState(newState);
+    await generateSareePreview(newState);
   };
 
   const updateZari = (zari) => {
     const newState = { ...sareeState, zari };
     setSareeState(newState);
-    // Regenerate preview when zari changes
-    generateSareePreview(newState);
+    // Only regenerate preview if all colors are set
+    if (newState.body.color && newState.border.color && newState.pallu.color) {
+      generateSareePreview(newState);
+    }
   };
 
   // Helper to convert image URL to base64
@@ -141,7 +137,15 @@ export const SareeCustomizer = () => {
       }
     };
     setSareeState(newState);
-    await generateSareePreview(newState);
+
+    // Only regenerate preview if all colors are set
+    if (newState.body.color && newState.border.color && newState.pallu.color) {
+      await generateSareePreview(newState);
+    } else {
+      toast.info('Design saved!', {
+        description: 'Select all colors and click Apply to see preview'
+      });
+    }
   };
 
   // Generate final high-quality design
@@ -151,9 +155,22 @@ export const SareeCustomizer = () => {
       toast.info('Generating final high-quality design...', {
         description: 'This may take a moment for best results'
       });
-      
-      const data = await finalizeDesignAPI(null, sareeState);
-      
+
+      // Collect images for sections that have motifs (same as preview)
+      const images = {};
+
+      if (sareeState.body.motifUrl) {
+        images.body = await imageUrlToBase64(sareeState.body.motifUrl);
+      }
+      if (sareeState.border.motifUrl) {
+        images.border = await imageUrlToBase64(sareeState.border.motifUrl);
+      }
+      if (sareeState.pallu.motifUrl) {
+        images.pallu = await imageUrlToBase64(sareeState.pallu.motifUrl);
+      }
+
+      const data = await finalizeDesignAPI(null, sareeState, images);
+
       if (data.imageUrl) {
         setSareePreviewUrl(data.imageUrl);
         toast.success('Final design generated!', {
@@ -178,8 +195,8 @@ export const SareeCustomizer = () => {
       <Header />
 
       <div className="flex flex-col">
-        {/* Top: Sticky Saree Preview */}
-        <div className="sticky top-0 z-40 w-full border-b border-border bg-background shadow-md">
+        {/* Top: Sticky Saree Preview (below header) */}
+        <div className="sticky top-20 z-40 w-full border-b border-border bg-background shadow-md">
           <SareeVisualizer
             sareeState={sareeState}
             sareePreviewUrl={sareePreviewUrl}
@@ -194,6 +211,7 @@ export const SareeCustomizer = () => {
             sareePreviewUrl={sareePreviewUrl}
             updatePart={updatePart}
             updateZari={updateZari}
+            applyColors={applyColors}
             applyDesign={applyDesign}
             finalizeDesign={handleFinalizeDesign}
             isGenerating={isGenerating}
